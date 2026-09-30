@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered citizen, municipal worker, or admin profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["citizen", "worker", "admin"] },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "area": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 300 },
+        "badgeId": { "type": "string", "maxLength": 50 },
+        "unit": { "type": "string", "maxLength": 100 },
+        "zone": { "type": "string", "maxLength": 100 },
+        "idProofType": { "type": "string", "maxLength": 50 },
+        "idProofNumber": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "role", "createdAt"]
+    },
+    "MunicipalWorker": {
+      "title": "MunicipalWorker",
+      "description": "Sanitation crew staff member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "zone": { "type": "string", "maxLength": 100 },
+        "unit": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["Available", "On Duty", "Busy"] },
+        "assignedTasks": { "type": "number" },
+        "completedTasks": { "type": "number" },
+        "rating": { "type": "number" }
+      },
+      "required": ["id", "name", "unit", "zone"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Civic waste report filed by a citizen",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 80 },
+        "location": { "type": "string", "maxLength": 150 },
+        "addressDetails": { "type": "string", "maxLength": 300 },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Urgent"] },
+        "status": { "type": "string", "enum": ["submitted", "under_review", "assigned", "in_progress", "resolved", "closed"] },
+        "description": { "type": "string", "maxLength": 2000 },
+        "beforePhotoUrl": { "type": "string", "maxLength": 1000 },
+        "afterPhotoUrl": { "type": "string", "maxLength": 1000 },
+        "reporterName": { "type": "string", "maxLength": 100 },
+        "reporterPhone": { "type": "string", "maxLength": 30 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "assignedWorkerId": { "type": "string", "maxLength": 128 },
+        "resolutionNote": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "category", "location", "priority", "status", "reporterId", "createdAt"]
+    },
+    "PickupRequest": {
+      "title": "PickupRequest",
+      "description": "Scheduled doorstep waste collection request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "wasteType": { "type": "string", "maxLength": 80 },
+        "scheduledDate": { "type": "string", "maxLength": 50 },
+        "timeSlot": { "type": "string", "maxLength": 50 },
+        "address": { "type": "string", "maxLength": 300 },
+        "area": { "type": "string", "maxLength": 100 },
+        "estimatedWeight": { "type": "string", "maxLength": 50 },
+        "specialInstructions": { "type": "string", "maxLength": 500 },
+        "status": { "type": "string", "enum": ["Requested", "Confirmed", "In Progress", "Completed", "Cancelled"] },
+        "requesterName": { "type": "string", "maxLength": 100 },
+        "requesterPhone": { "type": "string", "maxLength": 30 },
+        "requesterId": { "type": "string", "maxLength": 128 },
+        "assignedWorkerId": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "wasteType", "scheduledDate", "timeSlot", "address", "area", "status", "requesterId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and account credentials"
+    },
+    "/workers/{workerId}": {
+      "schema": { "$ref": "#/entities/MunicipalWorker" },
+      "description": "Sanitation crew staff members"
+    },
+    "/complaints/{complaintId}": {
+      "schema": { "$ref": "#/entities/Complaint" },
+      "description": "Civic waste complaint tickets"
+    },
+    "/pickups/{pickupId}": {
+      "schema": { "$ref": "#/entities/PickupRequest" },
+      "description": "Scheduled doorstep waste pickup requests"
+    }
+  }
+}

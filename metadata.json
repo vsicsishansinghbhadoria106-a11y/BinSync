@@ -1,0 +1,6 @@
+{
+  "name": "BinSync - Smart Civic Waste Management",
+  "description": "Civic-tech waste reporting, scheduled pickups, and municipal workflow tracking platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

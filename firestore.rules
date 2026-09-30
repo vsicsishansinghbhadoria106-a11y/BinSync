@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Default catch-all denies everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Test document for verifying live Firestore connectivity
+    match /test/connection {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // User profiles & account credentials
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (request.auth.uid == userId) && isValidId(userId);
+      allow delete: if false;
+    }
+
+    // Field staff and municipal workers
+    match /workers/{workerId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidId(workerId);
+      allow delete: if false;
+    }
+
+    // Municipal waste complaints
+    match /complaints/{complaintId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(complaintId);
+      allow update: if isSignedIn() && isValidId(complaintId);
+      allow delete: if false;
+    }
+
+    // Scheduled doorstep waste pickups
+    match /pickups/{pickupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(pickupId);
+      allow update: if isSignedIn() && isValidId(pickupId);
+      allow delete: if false;
+    }
+  }
+}

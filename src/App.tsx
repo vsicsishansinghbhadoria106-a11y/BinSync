@@ -56,11 +56,21 @@ const MainContent: React.FC = () => {
 };
 
 const Footer: React.FC = () => {
+  const { role, setActiveTab } = useApp();
   return (
     <footer className="mt-20 border-t border-white/50 dark:border-white/10 bg-white/60 dark:bg-[#182214]/65 backdrop-blur-xl py-12 text-[#14200C]/75 dark:text-[#F2F6ED]/75 text-xs shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-          <Logo size="sm" />
+          <button
+            onClick={() => {
+              const mainPageTab = role === 'admin' ? 'priority-queue' : role === 'worker' ? 'my-tasks' : 'dashboard';
+              setActiveTab(mainPageTab);
+            }}
+            className="focus:outline-hidden text-left cursor-pointer transition-transform active:scale-95"
+            title="Go to main dashboard"
+          >
+            <Logo size="sm" />
+          </button>
           <div className="h-4 w-px bg-[#14200C]/15 dark:bg-white/20 hidden sm:block" />
           <p className="text-[#969691] dark:text-[#8E9B82]">
             Civic-Tech Municipal Waste Dispatch & Audited Tracking Platform · Ward 24

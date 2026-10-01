@@ -88,8 +88,12 @@ export const Navbar: React.FC = () => {
         {/* Zone 1: Brand Wordmark */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setActiveTab(role === 'admin' ? 'priority-queue' : 'dashboard')}
-            className="flex items-center gap-2 focus:outline-hidden text-left"
+            onClick={() => {
+              const mainPageTab = role === 'admin' ? 'priority-queue' : role === 'worker' ? 'my-tasks' : 'dashboard';
+              setActiveTab(mainPageTab);
+            }}
+            className="flex items-center gap-2 focus:outline-hidden text-left cursor-pointer transition-transform active:scale-95"
+            title="Go to main dashboard"
           >
             <Logo size="md" />
           </button>
@@ -206,6 +210,7 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => {
                     setRole('citizen');
+                    setActiveTab('dashboard');
                     setRoleDropdownOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-white/50 dark:hover:bg-white/10 ${
@@ -218,6 +223,7 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => {
                     setRole('admin');
+                    setActiveTab('priority-queue');
                     setRoleDropdownOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-white/50 dark:hover:bg-white/10 ${
@@ -230,6 +236,7 @@ export const Navbar: React.FC = () => {
                 <button
                   onClick={() => {
                     setRole('worker');
+                    setActiveTab('my-tasks');
                     setRoleDropdownOpen(false);
                   }}
                   className={`w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-white/50 dark:hover:bg-white/10 ${

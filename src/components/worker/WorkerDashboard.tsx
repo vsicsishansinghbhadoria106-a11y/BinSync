@@ -25,23 +25,35 @@ export const WorkerDashboard: React.FC = () => {
   const {
     complaints,
     pickups,
+    workers,
     updateComplaintStatus,
     updatePickupStatus,
     currentUser,
+    setCurrentUser,
     showToast,
   } = useApp();
 
-  // Dynamic logged-in worker details
-  const assignedWorkerName = currentUser.name || 'Sanitation Worker';
-  const assignedWorkerUnit = currentUser.unit || currentUser.zone || 'Sanitation Unit 04';
-  const assignedWorkerBadge = currentUser.badgeId || currentUser.uid || 'W-104';
+  // Dynamic logged-in worker details with default fallback to first active crew member
+  const currentWorker = workers.find(
+    (w) =>
+      w.badge === currentUser.badgeId ||
+      w.id === currentUser.badgeId ||
+      w.name.toLowerCase() === currentUser.name?.toLowerCase()
+  ) || workers[0];
+
+  const assignedWorkerName = currentUser.badgeId ? (currentUser.name || currentWorker?.name || 'Rajesh Kumar') : (currentWorker?.name || 'Rajesh Kumar');
+  const assignedWorkerUnit = currentWorker?.unit || currentUser.unit || 'Unit 01 - North Ward';
+  const assignedWorkerBadge = currentWorker?.badge || currentUser.badgeId || 'W-101';
 
   // Find tasks assigned to this worker (or unassigned tasks in their zone that they can claim)
   const myTasks = complaints.filter(
     (c) =>
       c.assignedWorker?.id === assignedWorkerBadge ||
+      c.assignedWorker?.badge === assignedWorkerBadge ||
+      c.assignedWorkerId === assignedWorkerBadge ||
       c.assignedWorker?.id === currentUser.uid ||
-      (currentUser.name && c.assignedWorker?.name?.toLowerCase() === currentUser.name?.toLowerCase()) ||
+      (assignedWorkerName && c.assignedWorker?.name?.toLowerCase() === assignedWorkerName.toLowerCase()) ||
+      (assignedWorkerName && c.assignedWorkerName?.toLowerCase() === assignedWorkerName.toLowerCase()) ||
       (c.status === 'assigned' && !c.assignedWorker)
   );
 
@@ -51,8 +63,10 @@ export const WorkerDashboard: React.FC = () => {
   const completedTasks = complaints.filter(
     (c) =>
       (c.assignedWorker?.id === assignedWorkerBadge ||
+        c.assignedWorker?.badge === assignedWorkerBadge ||
+        c.assignedWorkerId === assignedWorkerBadge ||
         c.assignedWorker?.id === currentUser.uid ||
-        (currentUser.name && c.assignedWorker?.name?.toLowerCase() === currentUser.name?.toLowerCase())) &&
+        (assignedWorkerName && c.assignedWorker?.name?.toLowerCase() === assignedWorkerName.toLowerCase())) &&
       (c.status === 'resolved' || c.status === 'closed')
   );
 
@@ -60,8 +74,10 @@ export const WorkerDashboard: React.FC = () => {
   const myPickups = pickups.filter(
     (p) =>
       p.assignedWorker?.id === assignedWorkerBadge ||
+      p.assignedWorkerId === assignedWorkerBadge ||
       p.assignedWorker?.id === currentUser.uid ||
-      (currentUser.name && p.assignedWorker?.name?.toLowerCase() === currentUser.name?.toLowerCase()) ||
+      (assignedWorkerName && p.assignedWorker?.name?.toLowerCase() === assignedWorkerName.toLowerCase()) ||
+      (assignedWorkerName && p.assignedWorkerName?.toLowerCase() === assignedWorkerName.toLowerCase()) ||
       (p.status === 'Assigned' && !p.assignedWorker)
   );
 
@@ -219,6 +235,49 @@ export const WorkerDashboard: React.FC = () => {
               {completedTasks.length}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Sanitation Crew Member Selector Pill Bar */}
+      <div className="p-3.5 rounded-2xl bg-white/70 dark:bg-[#182214]/70 border border-[#14200C]/10 dark:border-white/10 glass-card-primary flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <HardHat className="w-4 h-4 text-[#4A5F29] dark:text-[#DAE3B7] shrink-0" />
+          <span className="text-xs font-bold text-[#14200C] dark:text-[#F2F6ED]">
+            Assigned Sanitation Crew Members:
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {workers.map((w) => {
+            const isSelected = assignedWorkerBadge === w.badge || assignedWorkerBadge === w.id || assignedWorkerName === w.name;
+            return (
+              <button
+                key={w.id}
+                type="button"
+                onClick={() => {
+                  setCurrentUser({
+                    ...currentUser,
+                    name: w.name,
+                    badgeId: w.badge || w.id,
+                    unit: w.unit,
+                    zone: w.zone,
+                    email: w.email,
+                    phone: w.phone,
+                  });
+                  showToast(`Viewing Work Orders for ${w.name} (${w.badge || w.id})`, 'info');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-smooth cursor-pointer flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-[#4A5F29] text-white shadow-xs'
+                    : 'bg-white/80 dark:bg-black/30 text-[#14200C] dark:text-[#F2F6ED] hover:bg-white dark:hover:bg-white/10 border border-[#14200C]/10 dark:border-white/10'
+                }`}
+              >
+                <span>{w.name}</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${isSelected ? 'bg-black/20 text-[#DAE3B7]' : 'bg-black/05 dark:bg-white/10 text-[#969691]'}`}>
+                  {w.badge || w.id}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -8,7 +8,6 @@ import { SchedulePickupView } from './components/citizen/SchedulePickupView';
 import { EcoAwarenessView } from './components/citizen/EcoAwarenessView';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { WorkerDashboard } from './components/worker/WorkerDashboard';
-import { LandingHero } from './components/home/LandingHero';
 import { Toast } from './components/common/Toast';
 import { Logo } from './components/brand/Logo';
 import { RoleAuthScreen } from './components/auth/RoleAuthScreen';
@@ -20,7 +19,7 @@ import { UserRole } from './types';
 const MainContent: React.FC = () => {
   const { role, activeTab, setActiveTab, setRole } = useApp();
 
-  if (activeTab === 'ecosystem') {
+  if (activeTab === 'ecosystem' || activeTab === 'landing') {
     return (
       <div className="-mt-6 -mx-4 sm:-mx-6">
         <OrbitalEcosystemScreen
@@ -35,10 +34,7 @@ const MainContent: React.FC = () => {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
-      {/* If viewing landing/home */}
-      {activeTab === 'landing' ? (
-        <LandingHero />
-      ) : role === 'admin' ? (
+      {role === 'admin' ? (
         <AdminDashboard />
       ) : role === 'worker' ? (
         <WorkerDashboard />

@@ -289,11 +289,18 @@ export const AdminDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-5 py-4 text-xs">
-                            {c.assignedWorker ? (
-                              <span className="text-[#4A5F29] font-bold flex items-center gap-1">
-                                <HardHat className="w-3.5 h-3.5" />
-                                {c.assignedWorker.name}
-                              </span>
+                            {c.assignedWorker || c.assignedWorkerName ? (
+                              <div>
+                                <span className="text-[#4A5F29] dark:text-[#DAE3B7] font-bold flex items-center gap-1">
+                                  <HardHat className="w-3.5 h-3.5" />
+                                  {c.assignedWorker?.name || c.assignedWorkerName}
+                                </span>
+                                {(c.assignedWorker?.unit || c.assignedWorkerBadge) && (
+                                  <span className="text-[10px] text-[#969691] block pl-4.5">
+                                    {c.assignedWorker?.unit || c.assignedWorkerBadge}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-[#969691] italic">Unassigned</span>
                             )}

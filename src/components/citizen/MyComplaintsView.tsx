@@ -12,6 +12,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Layers,
+  HardHat,
 } from 'lucide-react';
 
 export const MyComplaintsView: React.FC = () => {
@@ -32,7 +33,10 @@ export const MyComplaintsView: React.FC = () => {
       (currentUser.name && c.reporterName?.toLowerCase() === currentUser.name?.toLowerCase())
   );
 
-  const filteredComplaints = userComplaints.filter((c) => {
+  const isShowingAllWard = userComplaints.length === 0 && complaints.length > 0;
+  const baseComplaints = isShowingAllWard ? complaints : userComplaints;
+
+  const filteredComplaints = baseComplaints.filter((c) => {
     // Search filter
     const matchesSearch =
       c.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -105,7 +109,9 @@ export const MyComplaintsView: React.FC = () => {
             My Waste Complaints
           </h1>
           <p className="text-xs md:text-sm text-[#969691] mt-1">
-            Tracking logged reports filed by <strong className="text-[#14200C]">{currentUser.name}</strong>
+            {isShowingAllWard
+              ? 'Showing Ward 24 Community Reports with Active Sanitation Crew Assignments'
+              : <>Tracking logged reports filed by <strong className="text-[#14200C] dark:text-[#F2F6ED]">{currentUser.name}</strong></>}
           </p>
         </div>
 
@@ -266,8 +272,9 @@ export const MyComplaintsView: React.FC = () => {
                       <span>{new Date(complaint.createdAt).toLocaleDateString()}</span>
                     </span>
                     {complaint.assignedWorker && (
-                      <span className="text-[#4A5F29] dark:text-[#DAE3B7] font-semibold">
-                        Worker: {complaint.assignedWorker.name}
+                      <span className="text-[#4A5F29] dark:text-[#DAE3B7] font-semibold flex items-center gap-1 bg-[#EEF0E4]/60 dark:bg-[#4A5F29]/20 px-2 py-0.5 rounded-md">
+                        <HardHat className="w-3.5 h-3.5" />
+                        <span>Crew: {complaint.assignedWorker.name} ({complaint.assignedWorker.unit})</span>
                       </span>
                     )}
                   </div>

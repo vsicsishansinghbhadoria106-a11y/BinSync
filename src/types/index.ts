@@ -150,11 +150,11 @@ export interface PickupRequest {
 export interface MunicipalWorker {
   id: string;
   name: string;
-  email: string;
-  gender: 'male' | 'female';
-  badge: string;
+  email?: string;
+  gender?: 'male' | 'female';
+  badge?: string;
   unit: string;
-  active: boolean;
+  active?: boolean;
   phone?: string;
   zone?: string;
   status?: 'Available' | 'On Duty' | 'Busy';

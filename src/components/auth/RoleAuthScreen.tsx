@@ -3,11 +3,13 @@ import { useApp } from '../../context/AppContext';
 import { Logo } from '../brand/Logo';
 import { MUNICIPAL_AREAS } from '../../lib/constants';
 import { LANGUAGE_OPTIONS } from '../../utils/translations';
+import { UserRole } from '../../types';
 import {
   ShieldCheck,
   User,
   HardHat,
   ArrowRight,
+  ArrowLeft,
   Phone,
   Lock,
   Mail,
@@ -26,9 +28,10 @@ import {
 
 interface RoleAuthScreenProps {
   onBackToIntro?: () => void;
+  initialRole?: UserRole | null;
 }
 
-export const RoleAuthScreen: React.FC<RoleAuthScreenProps> = () => {
+export const RoleAuthScreen: React.FC<RoleAuthScreenProps> = ({ onBackToIntro, initialRole = 'citizen' }) => {
   const {
     login,
     signUpCitizen,
@@ -67,8 +70,16 @@ export const RoleAuthScreen: React.FC<RoleAuthScreenProps> = () => {
   }, []);
 
   // Sign In Form State
-  const [signInEmail, setSignInEmail] = useState('');
-  const [signInPassword, setSignInPassword] = useState('');
+  const [signInEmail, setSignInEmail] = useState(() => {
+    if (initialRole === 'admin') return 'admin@binsync.gov';
+    if (initialRole === 'worker') return 'rajesh.worker@binsync.gov';
+    return '';
+  });
+  const [signInPassword, setSignInPassword] = useState(() => {
+    if (initialRole === 'admin') return 'admin123';
+    if (initialRole === 'worker') return 'worker123';
+    return '';
+  });
 
   // Citizen Registration Form State
   const [regName, setRegName] = useState('');
@@ -154,7 +165,20 @@ export const RoleAuthScreen: React.FC<RoleAuthScreenProps> = () => {
     <div className="min-h-screen flex flex-col justify-between bg-[#F7F7F1] dark:bg-[#10160D] text-[#14200C] dark:text-[#F2F6ED] transition-colors relative selection:bg-[#DAE3B7] selection:text-[#14200C]">
       {/* Top Header Bar */}
       <header className="p-4 sm:p-6 flex items-center justify-between border-b border-black/05 dark:border-white/10 glass-nav">
-        <Logo size="md" />
+        <div className="flex items-center gap-3">
+          {onBackToIntro && (
+            <button
+              type="button"
+              onClick={onBackToIntro}
+              className="p-2 rounded-xl border border-black/10 dark:border-white/15 bg-white/60 dark:bg-[#182214]/60 text-xs font-semibold hover:bg-white dark:hover:bg-[#182214] transition-colors flex items-center gap-1.5 cursor-pointer text-[#14200C] dark:text-[#F2F6ED]"
+              title="Back to Role Selection"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Role Selection</span>
+            </button>
+          )}
+          <Logo size="md" />
+        </div>
 
         <div className="flex items-center gap-2">
           {/* Language Selector Dropdown */}
@@ -304,8 +328,62 @@ export const RoleAuthScreen: React.FC<RoleAuthScreenProps> = () => {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#EEF0E4]/60 dark:bg-[#202D1A]/60 border border-[#14200C]/08 text-[11px] text-[#969691] leading-relaxed">
-                ℹ️ <strong>Role Assignment:</strong> Sanitation workers and municipal officers sign in with their assigned staff email. Your role and permissions are securely loaded from municipal records.
+              <div className="p-3 rounded-xl bg-[#EEF0E4]/60 dark:bg-[#202D1A]/60 border border-[#14200C]/08 text-[11px] text-[#969691] leading-relaxed space-y-2">
+                <div>
+                  ℹ️ <strong>Demo Quick Access:</strong> Click a role to pre-fill credentials
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInEmail('citizen@example.com');
+                      setSignInPassword('citizen123');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/40 border border-[#14200C]/10 dark:border-white/10 text-[10px] font-semibold text-[#14200C] dark:text-[#F2F6ED] hover:bg-white cursor-pointer"
+                  >
+                    Citizen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInEmail('admin@binsync.gov');
+                      setSignInPassword('admin123');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/40 border border-[#14200C]/10 dark:border-white/10 text-[10px] font-semibold text-[#14200C] dark:text-[#F2F6ED] hover:bg-white cursor-pointer"
+                  >
+                    Admin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInEmail('rajesh.worker@binsync.gov');
+                      setSignInPassword('worker123');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/40 border border-[#14200C]/10 dark:border-white/10 text-[10px] font-semibold text-[#14200C] dark:text-[#F2F6ED] hover:bg-white cursor-pointer"
+                  >
+                    Crew: Rajesh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInEmail('sunita.worker@binsync.gov');
+                      setSignInPassword('worker123');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/40 border border-[#14200C]/10 dark:border-white/10 text-[10px] font-semibold text-[#14200C] dark:text-[#F2F6ED] hover:bg-white cursor-pointer"
+                  >
+                    Crew: Sunita
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignInEmail('amit.worker@binsync.gov');
+                      setSignInPassword('worker123');
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-white/80 dark:bg-black/40 border border-[#14200C]/10 dark:border-white/10 text-[10px] font-semibold text-[#14200C] dark:text-[#F2F6ED] hover:bg-white cursor-pointer"
+                  >
+                    Crew: Amit
+                  </button>
+                </div>
               </div>
 
               <button

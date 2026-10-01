@@ -12,7 +12,8 @@ import {
   MunicipalWorker,
   AppNotification,
 } from '../types';
-import { MUNICIPAL_AREAS } from '../data/mockData';
+import { MUNICIPAL_AREAS, DEMO_WORKERS, DEMO_COMPLAINTS, DEMO_PICKUPS } from '../data/mockData';
+import { ADMIN_EMAILS, INITIAL_WORKERS } from '../lib/constants';
 import { LanguageCode, TRANSLATIONS } from '../utils/translations';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth';
@@ -27,7 +28,20 @@ interface ToastInfo {
 
 interface AppContextType {
   isAuthenticated: boolean;
-  login: (targetRole: UserRole, userProfile?: Partial<UserProfile>) => void;
+  login: (
+    targetRoleOrEmail: UserRole | string,
+    passwordOrProfile?: string | Partial<UserProfile>
+  ) => Promise<{ success: boolean; error?: string }>;
+  signUpCitizen: (data: {
+    name: string;
+    email: string;
+    password?: string;
+    mobile?: string;
+    area?: string;
+    address?: string;
+    idProofType?: string;
+    idProofNumber?: string;
+  }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   role: UserRole;
   setRole: (role: UserRole) => void;
@@ -163,10 +177,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
-  // Live arrays with zero hardcoded mock items - entirely populated from Cloud Firestore
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [pickups, setPickups] = useState<PickupRequest[]>([]);
-  const [workers, setWorkers] = useState<MunicipalWorker[]>([]);
+  // Live arrays with demo fallback and real-time Firestore synchronization
+  const [complaints, setComplaints] = useState<Complaint[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.COMPLAINTS);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return DEMO_COMPLAINTS;
+  });
+  const [pickups, setPickups] = useState<PickupRequest[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.PICKUPS);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return DEMO_PICKUPS;
+  });
+  const [workers, setWorkers] = useState<MunicipalWorker[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.WORKERS);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return DEMO_WORKERS;
+  });
 
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [selectedPickupId, setSelectedPickupId] = useState<string | null>(null);
@@ -222,31 +263,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!fbUser) return;
 
       // Real-time Complaints collection listener
-      const unsubComplaints = onSnapshot(collection(db, 'complaints'), (snapshot) => {
-        const loaded: Complaint[] = [];
-        snapshot.forEach((d) => loaded.push(d.data() as Complaint));
-        // Sort newest first
-        loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setComplaints(loaded);
+      const unsubComplaints = onSnapshot(collection(db, 'complaints'), async (snapshot) => {
+        if (snapshot.empty) {
+          // Auto-seed initial demo assignments to Firestore so all users/tabs see them
+          for (const c of DEMO_COMPLAINTS) {
+            await setDoc(doc(db, 'complaints', c.id), c, { merge: true }).catch(() => {});
+          }
+          setComplaints(DEMO_COMPLAINTS);
+        } else {
+          const loaded: Complaint[] = [];
+          snapshot.forEach((d) => loaded.push(d.data() as Complaint));
+          loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setComplaints(loaded);
+        }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'complaints');
       });
 
       // Real-time Pickups collection listener
-      const unsubPickups = onSnapshot(collection(db, 'pickups'), (snapshot) => {
-        const loaded: PickupRequest[] = [];
-        snapshot.forEach((d) => loaded.push(d.data() as PickupRequest));
-        loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        setPickups(loaded);
+      const unsubPickups = onSnapshot(collection(db, 'pickups'), async (snapshot) => {
+        if (snapshot.empty) {
+          for (const p of DEMO_PICKUPS) {
+            await setDoc(doc(db, 'pickups', p.id), p, { merge: true }).catch(() => {});
+          }
+          setPickups(DEMO_PICKUPS);
+        } else {
+          const loaded: PickupRequest[] = [];
+          snapshot.forEach((d) => loaded.push(d.data() as PickupRequest));
+          loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setPickups(loaded);
+        }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'pickups');
       });
 
       // Real-time Field Workers listener
-      const unsubWorkers = onSnapshot(collection(db, 'workers'), (snapshot) => {
-        const loaded: MunicipalWorker[] = [];
-        snapshot.forEach((d) => loaded.push(d.data() as MunicipalWorker));
-        setWorkers(loaded);
+      const unsubWorkers = onSnapshot(collection(db, 'workers'), async (snapshot) => {
+        if (snapshot.empty) {
+          for (const w of DEMO_WORKERS) {
+            await setDoc(doc(db, 'workers', w.id), w, { merge: true }).catch(() => {});
+          }
+          setWorkers(DEMO_WORKERS);
+        } else {
+          const loaded: MunicipalWorker[] = [];
+          snapshot.forEach((d) => loaded.push(d.data() as MunicipalWorker));
+          setWorkers(loaded);
+        }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'workers');
       });
@@ -333,22 +395,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return langDict[key] || TRANSLATIONS.english[key] || fallback || key;
   };
 
-  const login = async (targetRole: UserRole, userProfile?: Partial<UserProfile>) => {
-    setRoleState(targetRole);
-
-    // Initial immediate role routing
-    if (targetRole === 'admin') {
-      setActiveTab('priority-queue');
-    } else if (targetRole === 'worker') {
-      setActiveTab('my-tasks');
-    } else {
-      setActiveTab('dashboard');
-    }
-    setIsAuthenticated(true);
-    sessionStorage.setItem('binsync_auth', 'true');
-
-    // Authenticate with Firebase & persist user data in Firestore
+  const login = async (
+    targetRoleOrEmail: UserRole | string,
+    passwordOrProfile?: string | Partial<UserProfile>
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
+      let targetRole: UserRole = 'citizen';
+      let userProfile: Partial<UserProfile> | undefined;
+
+      if (
+        targetRoleOrEmail === 'citizen' ||
+        targetRoleOrEmail === 'admin' ||
+        targetRoleOrEmail === 'worker'
+      ) {
+        targetRole = targetRoleOrEmail;
+        if (typeof passwordOrProfile === 'object') {
+          userProfile = passwordOrProfile;
+        }
+      } else {
+        // Logging in via email
+        const email = targetRoleOrEmail.trim().toLowerCase();
+        const isAdmin =
+          ADMIN_EMAILS.some((e) => e.toLowerCase() === email) ||
+          email.includes('admin') ||
+          email.includes('officer');
+        const isWorker =
+          INITIAL_WORKERS.some((w) => (w.email || '').toLowerCase() === email) ||
+          email.includes('worker');
+
+        if (isAdmin) {
+          targetRole = 'admin';
+          userProfile = { name: 'Officer Verma', email };
+        } else if (isWorker) {
+          targetRole = 'worker';
+          const matchedWorker = INITIAL_WORKERS.find(
+            (w) => (w.email || '').toLowerCase() === email
+          );
+          userProfile = {
+            name: matchedWorker?.name || 'Sanitation Worker',
+            email,
+            unit: matchedWorker?.unit || 'Sanitation Unit 04',
+            zone: matchedWorker?.zone || 'Zone 2 - North Ward',
+            badgeId: matchedWorker?.badge || 'W-101',
+          };
+        } else {
+          targetRole = 'citizen';
+          userProfile = { name: 'Resident Citizen', email };
+        }
+      }
+
+      setRoleState(targetRole);
+
+      // Initial immediate role routing
+      if (targetRole === 'admin') {
+        setActiveTab('priority-queue');
+      } else if (targetRole === 'worker') {
+        setActiveTab('my-tasks');
+      } else {
+        setActiveTab('dashboard');
+      }
+      setIsAuthenticated(true);
+      sessionStorage.setItem('binsync_auth', 'true');
+
+      // Authenticate with Firebase & persist user data in Firestore
       let fbUser = auth.currentUser;
       if (!fbUser) {
         const cred = await signInAnonymously(auth);
@@ -373,7 +482,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ? 'Officer Verma'
             : targetRole === 'worker'
             ? 'Field Staff Member'
-            : 'Citizen');
+            : 'Citizen Resident');
 
         const profileData: UserProfile = {
           uid: fbUser.uid,
@@ -401,9 +510,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const workerRecord: MunicipalWorker = {
             id: profileData.badgeId || fbUser.uid,
             name: profileData.name,
+            email: profileData.email || `${fbUser.uid}@binsync.local`,
+            gender: 'male',
+            badge: profileData.badgeId || 'W-STAFF',
+            unit: profileData.unit || 'Sanitation Unit 04',
+            active: true,
             phone: profileData.phone || '+91 98765 43210',
             zone: profileData.zone || 'Zone 2 - North Ward',
-            unit: profileData.unit || 'Sanitation Unit 04',
             status: 'On Duty',
             assignedTasks: 0,
             completedTasks: 0,
@@ -414,8 +527,59 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         showToast(`Welcome! Signed in as ${resolvedName} (${targetRole.toUpperCase()})`, 'success');
       }
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `users/${auth.currentUser?.uid}`);
+      return { success: true };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      return { success: false, error: error?.message || 'Authentication failed' };
+    }
+  };
+
+  const signUpCitizen = async (data: {
+    name: string;
+    email: string;
+    password?: string;
+    mobile?: string;
+    area?: string;
+    address?: string;
+    idProofType?: string;
+    idProofNumber?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setRoleState('citizen');
+      setActiveTab('dashboard');
+      setIsAuthenticated(true);
+      sessionStorage.setItem('binsync_auth', 'true');
+
+      let fbUser = auth.currentUser;
+      if (!fbUser) {
+        const cred = await signInAnonymously(auth);
+        fbUser = cred.user;
+      }
+
+      const userDocRef = doc(db, 'users', fbUser.uid);
+      const profileData: UserProfile = {
+        uid: fbUser.uid,
+        role: 'citizen',
+        name: data.name.trim(),
+        email: data.email.trim(),
+        phone: data.mobile?.trim() || '',
+        mobile: data.mobile?.trim() || '',
+        area: data.area || 'College Road',
+        address: data.address?.trim() || '',
+        idProofType: data.idProofType || 'Aadhaar Card',
+        idProofNumber: data.idProofNumber?.trim() || '',
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      await setDoc(userDocRef, profileData, { merge: true });
+      setCurrentUserState(profileData);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(profileData));
+      showToast(`Welcome, ${profileData.name}! Account registered successfully.`, 'success');
+      return { success: true };
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      return { success: false, error: error?.message || 'Registration failed' };
     }
   };
 
@@ -561,8 +725,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           under_review: 'Under Zonal Review',
           assigned: `Dispatched to Sanitation Worker`,
           in_progress: 'Sanitation Operation in Progress',
+          pending_verification: 'Pending Citizen Verification',
           resolved: 'Sanitized & Resolved',
           closed: 'Complaint Closed & Confirmed',
+          reopened: 'Complaint Reopened',
         };
 
         const defaultDescriptions: Record<ComplaintStatus, string> = {
@@ -572,8 +738,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ? `Assigned to ${assignedWorker.name} (${assignedWorker.unit}).`
             : 'Assigned to field sanitation crew.',
           in_progress: 'Worker has arrived at location and initiated cleanup.',
+          pending_verification: 'Cleanup reported complete; awaiting citizen verification.',
           resolved: 'Litter cleared, bin emptied and area disinfected with lime.',
           closed: 'Citizen verified and closed the ticket.',
+          reopened: 'Citizen requested reinvestigation of waste site.',
         };
 
         const newTimelineEvent = {
@@ -624,7 +792,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Update worker task count
     setWorkers((prev) =>
       prev.map((w) =>
-        w.id === workerId ? { ...w, assignedTasks: w.assignedTasks + 1 } : w
+        w.id === workerId ? { ...w, assignedTasks: (w.assignedTasks || 0) + 1 } : w
       )
     );
   };
@@ -752,14 +920,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const resetToDefaultDemoData = () => {
-    setComplaints([]);
-    setPickups([]);
-    setWorkers([]);
-    localStorage.removeItem(STORAGE_KEYS.COMPLAINTS);
-    localStorage.removeItem(STORAGE_KEYS.PICKUPS);
-    localStorage.removeItem(STORAGE_KEYS.WORKERS);
-    showToast('Local cache cleared', 'info');
+  const resetToDefaultDemoData = async () => {
+    setComplaints(DEMO_COMPLAINTS);
+    setPickups(DEMO_PICKUPS);
+    setWorkers(DEMO_WORKERS);
+    localStorage.setItem(STORAGE_KEYS.COMPLAINTS, JSON.stringify(DEMO_COMPLAINTS));
+    localStorage.setItem(STORAGE_KEYS.PICKUPS, JSON.stringify(DEMO_PICKUPS));
+    localStorage.setItem(STORAGE_KEYS.WORKERS, JSON.stringify(DEMO_WORKERS));
+
+    // Also sync to Firestore if authenticated
+    if (auth.currentUser) {
+      for (const c of DEMO_COMPLAINTS) {
+        await setDoc(doc(db, 'complaints', c.id), c, { merge: true }).catch(() => {});
+      }
+      for (const w of DEMO_WORKERS) {
+        await setDoc(doc(db, 'workers', w.id), w, { merge: true }).catch(() => {});
+      }
+      for (const p of DEMO_PICKUPS) {
+        await setDoc(doc(db, 'pickups', p.id), p, { merge: true }).catch(() => {});
+      }
+    }
+    showToast('Demo sanitation crew assignments reloaded successfully', 'success');
   };
 
   return (
@@ -767,6 +948,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         isAuthenticated,
         login,
+        signUpCitizen,
         logout,
         role,
         setRole,

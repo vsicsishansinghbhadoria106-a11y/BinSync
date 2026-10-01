@@ -117,6 +117,20 @@ export const Navbar: React.FC = () => {
               </button>
             );
           })}
+
+          <button
+            onClick={() => {
+              const el = document.getElementById('about-courfour');
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="transition-colors relative py-1 text-[#14200C]/75 dark:text-[#F2F6ED]/75 hover:text-[#4A5F29] dark:hover:text-[#DAE3B7] flex items-center gap-1.5 cursor-pointer font-semibold"
+            title="About Team CourFour"
+          >
+            <Users className="w-3.5 h-3.5 text-[#4A5F29] dark:text-[#DAE3B7]" />
+            <span>Team CourFour</span>
+          </button>
         </nav>
 
         {/* Zone 3: Actions */}
@@ -334,6 +348,22 @@ export const Navbar: React.FC = () => {
                 {item.label}
               </button>
             ))}
+
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setTimeout(() => {
+                  const el = document.getElementById('about-courfour');
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }, 100);
+              }}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors text-[#14200C]/80 hover:bg-[#EEF0E4] flex items-center gap-2"
+            >
+              <Users className="w-4 h-4 text-[#4A5F29]" />
+              <span>About Team CourFour</span>
+            </button>
 
             {role === 'citizen' && (
               <button

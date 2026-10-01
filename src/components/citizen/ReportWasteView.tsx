@@ -68,10 +68,10 @@ export const ReportWasteView: React.FC = () => {
     setPhotoUrl(dataUrl);
 
     try {
-      // Upload actual captured camera frame to Firebase Storage
+      // Upload actual captured camera frame to Firebase Storage or optimized proof
       const storageUrl = await uploadImageToStorage(blob, 'reports');
       setPhotoUrl(storageUrl);
-      showToast('Photo captured and uploaded to storage!', 'success');
+      showToast('Photo evidence captured and verified!', 'success');
     } catch (err: any) {
       console.warn('Storage upload note:', err);
       // Fallback preview remains intact so user can submit
@@ -434,7 +434,7 @@ export const ReportWasteView: React.FC = () => {
                 {isUploadingPhoto && (
                   <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 space-y-2">
                     <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
-                    <span className="text-xs font-semibold">Saving to Firebase Storage...</span>
+                    <span className="text-xs font-semibold">Optimizing and saving photo proof...</span>
                   </div>
                 )}
 

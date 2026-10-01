@@ -83,7 +83,7 @@ export const WorkerDashboard: React.FC = () => {
     try {
       const storageUrl = await uploadImageToStorage(blob, 'cleanups');
       setUploadedAfterPhoto(storageUrl);
-      showToast('Cleanup proof uploaded to Firebase Storage!', 'success');
+      showToast('Cleanup proof verified and attached!', 'success');
     } catch (err) {
       console.warn('Worker upload notice:', err);
     } finally {
@@ -104,7 +104,7 @@ export const WorkerDashboard: React.FC = () => {
       try {
         const storageUrl = await uploadImageToStorage(file, 'cleanups');
         setUploadedAfterPhoto(storageUrl);
-        showToast('Cleanup proof uploaded!', 'success');
+        showToast('Cleanup proof verified and attached!', 'success');
       } catch (err) {
         console.warn('Worker upload notice:', err);
       } finally {

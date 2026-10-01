@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Camera, SwitchCamera, X, RotateCcw, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  Camera,
+  SwitchCamera,
+  X,
+  RotateCcw,
+  Check,
+  AlertCircle,
+  RefreshCw,
+  Upload,
+  Info,
+  ShieldAlert,
+} from 'lucide-react';
 
 interface RealDeviceCameraProps {
   isOpen: boolean;
@@ -18,6 +29,7 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPermissionDenied, setIsPermissionDenied] = useState<boolean>(false);
   const [hasMultipleCameras, setHasMultipleCameras] = useState<boolean>(false);
 
   // Captured frame state
@@ -27,12 +39,17 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const activeStreamRef = useRef<MediaStream | null>(null);
+  const fileFallbackInputRef = useRef<HTMLInputElement | null>(null);
 
   // Stop active stream utility
   const stopCurrentStream = useCallback(() => {
     if (activeStreamRef.current) {
       activeStreamRef.current.getTracks().forEach((track) => {
-        track.stop();
+        try {
+          track.stop();
+        } catch {
+          // ignore
+        }
       });
       activeStreamRef.current = null;
     }
@@ -41,7 +58,7 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
 
   // Check if multiple camera devices exist (front & back)
   useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       navigator.mediaDevices
         .enumerateDevices()
         .then((devices) => {
@@ -49,20 +66,27 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
           setHasMultipleCameras(videoInputs.length > 1);
         })
         .catch(() => {
-          setHasMultipleCameras(true); // default to showing flip button on mobile
+          setHasMultipleCameras(true);
         });
     }
   }, []);
 
-  // Start real device camera feed
+  // Start real device camera feed with graceful permission and error handling
   const startCamera = useCallback(
     async (mode: 'environment' | 'user') => {
       setIsLoading(true);
       setErrorMessage(null);
+      setIsPermissionDenied(false);
       stopCurrentStream();
 
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setErrorMessage('Unable to access the camera. Please check your camera permissions and try again.');
+      if (
+        typeof navigator === 'undefined' ||
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        setErrorMessage(
+          'Live camera streaming is not available in this browser or environment. You can choose a photo from your device below.'
+        );
         setIsLoading(false);
         return;
       }
@@ -73,24 +97,30 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
           mediaStream = await navigator.mediaDevices.getUserMedia({
             video: {
               facingMode: { ideal: mode },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
             },
             audio: false,
           });
         } catch (firstErr: any) {
-          // Fallback if specific ideal facingMode is rejected by laptop/desktop webcam
+          // If permission was denied or blocked by browser/iframe policy, don't retry with relaxed constraints
+          const firstErrName = firstErr?.name || '';
+          const firstErrMsg = String(firstErr?.message || '').toLowerCase();
           if (
-            firstErr?.name === 'OverconstrainedError' ||
-            firstErr?.name === 'ConstraintNotSatisfiedError'
+            firstErrName === 'NotAllowedError' ||
+            firstErrName === 'PermissionDeniedError' ||
+            firstErrName === 'SecurityError' ||
+            firstErrMsg.includes('permission denied') ||
+            firstErrMsg.includes('not allowed')
           ) {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
-          } else {
             throw firstErr;
           }
+
+          // Fallback if specific ideal facingMode / resolution constraints are rejected
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
         }
 
         activeStreamRef.current = mediaStream;
@@ -105,21 +135,57 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
 
         setIsLoading(false);
       } catch (err: any) {
-        console.error('Real device camera error:', err);
+        // Log informative warning rather than triggering fatal console.error
+        console.warn('Real device camera access notice:', err?.message || err);
         stopCurrentStream();
         setIsLoading(false);
 
-        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-          setErrorMessage('Camera permission was denied. Please allow camera access in your browser settings.');
-        } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-          setErrorMessage('No camera was detected on this device.');
+        const errorName = err?.name || '';
+        const errorMsg = String(err?.message || '').toLowerCase();
+
+        if (
+          errorName === 'NotAllowedError' ||
+          errorName === 'PermissionDeniedError' ||
+          errorName === 'SecurityError' ||
+          errorMsg.includes('permission denied') ||
+          errorMsg.includes('not allowed')
+        ) {
+          setIsPermissionDenied(true);
+          setErrorMessage(
+            'Camera permission was denied or blocked by browser policy. You can choose a photo directly from your device, or allow camera permissions in your browser.'
+          );
+        } else if (
+          errorName === 'NotFoundError' ||
+          errorName === 'DevicesNotFoundError'
+        ) {
+          setErrorMessage('No camera hardware was detected on this device. You can select an image file from your device.');
+        } else if (errorName === 'NotReadableError' || errorName === 'TrackStartError') {
+          setErrorMessage('Camera is currently in use by another application. Please close other camera apps and retry, or choose a file below.');
         } else {
-          setErrorMessage('Unable to access the camera. Please check your camera permissions and try again.');
+          setErrorMessage('Unable to connect to camera. You can retry or select a photo from your device below.');
         }
       }
     },
     [stopCurrentStream]
   );
+
+  // Fallback file picker for when camera is denied or user prefers local photo
+  const handleFileFallback = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCapturedPreviewUrl(reader.result);
+        setCapturedBlob(file);
+        setErrorMessage(null);
+        setIsPermissionDenied(false);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Sync stream to video element when stream or video ref updates
   useEffect(() => {
@@ -197,7 +263,6 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
   // Confirm photo: pass blob & url to caller
   const handleConfirmPhoto = () => {
     if (capturedPreviewUrl) {
-      // If blob was generated, use it; otherwise create blob from dataUrl
       if (capturedBlob) {
         onPhotoConfirmed(capturedBlob, capturedPreviewUrl);
       } else {
@@ -217,6 +282,7 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
     setCapturedBlob(null);
     setCapturedPreviewUrl(null);
     setErrorMessage(null);
+    setIsPermissionDenied(false);
     onClose();
   };
 
@@ -224,29 +290,58 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md">
+      {/* Hidden fallback file input (works even if camera permissions are blocked) */}
+      <input
+        ref={fileFallbackInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileFallback}
+        className="hidden"
+      />
+
       <div className="relative w-full max-w-xl bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col aspect-3/4 sm:aspect-4/3 max-h-[92vh]">
         {/* Top Header Controls Bar */}
         <div className="absolute top-0 inset-x-0 z-30 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                errorMessage ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'
+              }`}
+            />
             <h3 className="text-white text-xs font-bold tracking-wider uppercase drop-shadow-md">
               {capturedPreviewUrl ? 'Photo Preview' : title}
             </h3>
-            {!capturedPreviewUrl && (
+            {!capturedPreviewUrl && !errorMessage && (
               <span className="text-[10px] text-white/80 bg-white/15 px-2 py-0.5 rounded-full backdrop-blur-xs">
                 {facingMode === 'environment' ? 'Rear' : 'Front'}
               </span>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleClose}
-            className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-transform active:scale-95 cursor-pointer"
-            title="Close Camera"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Quick Upload from Device Button in Header */}
+            {!capturedPreviewUrl && (
+              <button
+                type="button"
+                onClick={() => fileFallbackInputRef.current?.click()}
+                className="px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer"
+                title="Choose photo from device"
+              >
+                <Upload className="w-3.5 h-3.5 text-sky-300" />
+                <span className="hidden sm:inline">Upload Photo</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition-transform active:scale-95 cursor-pointer"
+              title="Close Camera"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Shutter Flash Animation */}
@@ -264,28 +359,60 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
               className="w-full h-full object-cover"
             />
           ) : errorMessage ? (
-            /* Error & Permission Handling */
+            /* Error & Permission Handling Screen with Direct Fallback Action */
             <div className="p-6 text-center max-w-md mx-auto space-y-4">
-              <div className="w-14 h-14 rounded-full bg-red-950/80 border border-red-500/40 text-red-400 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8" />
+              <div className="w-14 h-14 rounded-full bg-amber-950/80 border border-amber-500/40 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+                {isPermissionDenied ? (
+                  <ShieldAlert className="w-7 h-7 text-amber-400" />
+                ) : (
+                  <AlertCircle className="w-7 h-7 text-amber-400" />
+                )}
               </div>
-              <div className="space-y-1">
-                <h4 className="text-white text-base font-bold">Camera Access Issue</h4>
+
+              <div className="space-y-1.5">
+                <h4 className="text-white text-base font-bold">
+                  {isPermissionDenied ? 'Camera Permission Denied' : 'Camera Access Notice'}
+                </h4>
                 <p className="text-white/80 text-xs leading-relaxed">{errorMessage}</p>
               </div>
-              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+
+              {/* Helpful Browser Permission Guide if blocked */}
+              {isPermissionDenied && (
+                <div className="bg-white/10 rounded-2xl p-3 text-left border border-white/15 text-[11px] text-white/80 space-y-1">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                    <Info className="w-3.5 h-3.5" />
+                    <span>How to enable camera access:</span>
+                  </div>
+                  <p className="text-white/70 pl-5 leading-normal">
+                    Click the lock or camera icon <strong className="text-white font-mono">🔒</strong> in your browser's address bar and set Camera to <strong>Allow</strong>, then tap Retry.
+                  </p>
+                </div>
+              )}
+
+              {/* Seamless Action Buttons: Fallback File Upload, Retry, or Cancel */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => fileFallbackInputRef.current?.click()}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Choose Photo from Device</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => startCamera(facingMode)}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Try Again</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Retry Camera</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold active:scale-95 cursor-pointer"
+                  className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-medium active:scale-95 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -338,7 +465,7 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
               </button>
             </div>
           ) : !errorMessage ? (
-            /* LIVE CAMERA CONTROLS: Flip Camera + Capture ( ● ) */
+            /* LIVE CAMERA CONTROLS: Flip Camera + Capture ( ● ) + Choose File */
             <div className="w-full flex items-center justify-between max-w-sm px-4">
               {/* Flip camera button */}
               <button
@@ -364,14 +491,14 @@ export const RealDeviceCamera: React.FC<RealDeviceCameraProps> = ({
                 </div>
               </button>
 
-              {/* Empty placeholder to balance layout or close */}
+              {/* Fallback to choose photo from files */}
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={() => fileFallbackInputRef.current?.click()}
                 className="p-3.5 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/20 transition-all active:scale-90 cursor-pointer"
-                title="Cancel"
+                title="Select photo from device"
               >
-                <X className="w-5 h-5" />
+                <Upload className="w-5 h-5" />
               </button>
             </div>
           ) : null}

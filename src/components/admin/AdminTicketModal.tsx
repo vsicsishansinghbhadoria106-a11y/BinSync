@@ -36,7 +36,7 @@ export const AdminTicketModal: React.FC<Props> = ({ complaintId, onClose }) => {
   );
   const [adminNoteInput, setAdminNoteInput] = useState<string>('');
   const [afterPhotoUrl, setAfterPhotoUrl] = useState<string>(
-    'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80'
+    complaint?.afterPhotoUrl || ''
   );
 
   if (!complaint) return null;
@@ -333,12 +333,19 @@ export const AdminTicketModal: React.FC<Props> = ({ complaintId, onClose }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <span className="text-xs font-bold text-[#969691]">Citizen Before Photo</span>
-              <div className="rounded-2xl overflow-hidden aspect-4/3 bg-[#F7F7F1] border border-[#14200C]/10">
-                <img
-                  src={complaint.beforePhotoUrl}
-                  alt="Before"
-                  className="w-full h-full object-cover"
-                />
+              <div className="rounded-2xl overflow-hidden aspect-4/3 bg-[#F7F7F1] border border-[#14200C]/10 flex items-center justify-center">
+                {complaint.beforePhotoUrl ? (
+                  <img
+                    src={complaint.beforePhotoUrl}
+                    alt="Before"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-center p-4">
+                    <Camera className="w-6 h-6 text-[#969691] mx-auto mb-1" />
+                    <p className="text-xs text-[#969691]">No photo attached</p>
+                  </div>
+                )}
               </div>
             </div>
 

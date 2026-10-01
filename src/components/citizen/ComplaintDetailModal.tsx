@@ -47,8 +47,10 @@ export const ComplaintDetailModal: React.FC<Props> = ({
     under_review: 1,
     assigned: 2,
     in_progress: 3,
-    resolved: 4,
-    closed: 5,
+    pending_verification: 4,
+    resolved: 5,
+    closed: 6,
+    reopened: 1,
   };
 
   const currentStepIndex = statusOrder[complaint.status] ?? 0;

@@ -5,6 +5,7 @@ export interface UserProfile {
   name: string;
   role: UserRole;
   email?: string;
+  mobile?: string;
   phone?: string;
   area?: string;
   address?: string;
@@ -25,8 +26,10 @@ export type ComplaintStatus =
   | 'under_review'
   | 'assigned'
   | 'in_progress'
+  | 'pending_verification'
   | 'resolved'
-  | 'closed';
+  | 'closed'
+  | 'reopened';
 
 export type ComplaintPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
@@ -54,6 +57,7 @@ export interface Complaint {
   title: string;
   category: ComplaintCategory;
   location: string;
+  area?: string;
   addressDetails?: string;
   coordinates?: { lat: number; lng: number };
   priority: ComplaintPriority;
@@ -63,20 +67,31 @@ export interface Complaint {
   reporterEmail?: string;
   reporterPhone?: string;
   reporterId?: string;
+  citizenId?: string;
+  citizenName?: string;
   assignedWorkerId?: string;
+  assignedWorkerName?: string;
+  assignedWorkerBadge?: string;
   createdAt: string;
   updatedAt: string;
+  assignedAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
   assignedWorker?: {
     id: string;
     name: string;
-    phone: string;
-    unit: string;
+    phone?: string;
+    unit?: string;
+    badge?: string;
+    email?: string;
   };
   beforePhotoUrl?: string;
+  beforeImageUrl?: string;
   afterPhotoUrl?: string;
+  afterImageUrl?: string;
   adminNotes?: string;
   citizenFeedback?: {
-    rating: number;
+    rating?: number;
     confirmed: boolean;
     comment?: string;
   };
@@ -105,7 +120,7 @@ export interface PickupTimelineEvent {
 }
 
 export interface PickupRequest {
-  id: string; // e.g. PU-2026-00045
+  id: string;
   wasteType: PickupWasteType;
   scheduledDate: string;
   timeSlot: string;
@@ -116,15 +131,18 @@ export interface PickupRequest {
   specialInstructions?: string;
   requesterName: string;
   requesterPhone: string;
+  requesterEmail?: string;
   requesterId?: string;
   assignedWorkerId?: string;
+  assignedWorkerName?: string;
   createdAt: string;
   updatedAt?: string;
   assignedWorker?: {
     id: string;
     name: string;
-    phone: string;
-    truckId: string;
+    phone?: string;
+    truckId?: string;
+    unit?: string;
   };
   timeline: PickupTimelineEvent[];
 }
@@ -132,13 +150,18 @@ export interface PickupRequest {
 export interface MunicipalWorker {
   id: string;
   name: string;
-  phone: string;
-  zone: string;
+  email: string;
+  gender: 'male' | 'female';
+  badge: string;
   unit: string;
-  status: 'Available' | 'On Duty' | 'Busy';
-  assignedTasks: number;
-  completedTasks: number;
-  rating: number;
+  active: boolean;
+  phone?: string;
+  zone?: string;
+  status?: 'Available' | 'On Duty' | 'Busy';
+  assignedTasks?: number;
+  completedTasks?: number;
+  rating?: number;
+  uid?: string;
 }
 
 export interface AppNotification {

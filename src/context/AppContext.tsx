@@ -263,15 +263,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Persistence
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.COMPLAINTS, JSON.stringify(complaints));
+    try {
+      localStorage.setItem(STORAGE_KEYS.COMPLAINTS, JSON.stringify(complaints));
+    } catch (e) {
+      console.warn('LocalStorage complaints quota notice:', e);
+    }
   }, [complaints]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PICKUPS, JSON.stringify(pickups));
+    try {
+      localStorage.setItem(STORAGE_KEYS.PICKUPS, JSON.stringify(pickups));
+    } catch (e) {
+      console.warn('LocalStorage pickups quota notice:', e);
+    }
   }, [pickups]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.WORKERS, JSON.stringify(workers));
+    try {
+      localStorage.setItem(STORAGE_KEYS.WORKERS, JSON.stringify(workers));
+    } catch (e) {
+      console.warn('LocalStorage workers quota notice:', e);
+    }
   }, [workers]);
 
   useEffect(() => {

@@ -80,10 +80,16 @@ export const AdminDashboard: React.FC = () => {
         return { label: 'Assigned', styles: 'bg-indigo-100 text-indigo-900 border-indigo-300' };
       case 'in_progress':
         return { label: 'In Progress', styles: 'bg-purple-100 text-purple-900 border-purple-300' };
+      case 'pending_verification':
+        return { label: 'Pending Verification', styles: 'bg-yellow-100 text-yellow-900 border-yellow-300' };
       case 'resolved':
         return { label: 'Resolved', styles: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+      case 'reopened':
+        return { label: 'Reopened', styles: 'bg-red-100 text-red-900 border-red-300' };
       case 'closed':
         return { label: 'Closed', styles: 'bg-slate-100 text-slate-900 border-slate-300' };
+      default:
+        return { label: status, styles: 'bg-slate-100 text-slate-900 border-slate-300' };
     }
   };
 

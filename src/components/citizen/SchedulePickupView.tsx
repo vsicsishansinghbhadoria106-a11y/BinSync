@@ -34,12 +34,10 @@ export const SchedulePickupView: React.FC = () => {
     return d.toISOString().split('T')[0];
   });
   const [timeSlot, setTimeSlot] = useState<string>('09:00 AM - 11:00 AM');
-  const [address, setAddress] = useState<string>(currentUser.address || 'House #24, Lane 2, College Road');
-  const [area, setArea] = useState<string>(currentUser.area || 'College Road');
-  const [estimatedWeight, setEstimatedWeight] = useState<string>('15-20 kg');
-  const [specialInstructions, setSpecialInstructions] = useState<string>(
-    'Segregated clean dry waste: corrugated cardboard boxes, clean plastic bottles, and paper bundles tied in jute rope.'
-  );
+  const [address, setAddress] = useState<string>(currentUser.address || '');
+  const [area, setArea] = useState<string>(currentUser.area || MUNICIPAL_AREAS[0]);
+  const [estimatedWeight, setEstimatedWeight] = useState<string>('1-5 kg');
+  const [specialInstructions, setSpecialInstructions] = useState<string>('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdPickupId, setCreatedPickupId] = useState<string | null>(null);
@@ -59,22 +57,13 @@ export const SchedulePickupView: React.FC = () => {
     '04:00 PM - 06:00 PM',
   ];
 
-  const handleQuickPreset = () => {
-    setWasteType('Dry Waste');
-    setScheduledDate('2026-10-02');
-    setTimeSlot('09:00 AM - 11:00 AM');
-    setAddress('House #24, Lane 2, College Road');
-    setArea('College Road');
-    setEstimatedWeight('15-20 kg');
-    setSpecialInstructions('Bundled cardboard and dry plastic containers.');
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!address.trim() || !area) return;
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const newPickup = createPickupRequest({
+    try {
+      const newPickup = await createPickupRequest({
         wasteType,
         scheduledDate,
         timeSlot,
@@ -97,7 +86,10 @@ export const SchedulePickupView: React.FC = () => {
       } catch {
         // ignore
       }
-    }, 350);
+    } catch (err) {
+      console.error('Pickup request error:', err);
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -129,17 +121,6 @@ export const SchedulePickupView: React.FC = () => {
             Book doorstep collection for recyclable dry waste, bulky goods, and e-waste.
           </p>
         </div>
-
-        {/* 1-Click Demo Shortcut */}
-        <button
-          type="button"
-          onClick={handleQuickPreset}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#DAE3B7]/80 hover:bg-[#DAE3B7] text-[#14200C] text-xs font-semibold border border-[#4A5F29]/20 transition-smooth shadow-2xs self-start"
-          title="Autofill Dry Waste Pickup booking"
-        >
-          <Zap className="w-3.5 h-3.5 text-[#4A5F29]" />
-          <span>Quick Preset: Dry Waste (02 Oct, Morning)</span>
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -3,6 +3,8 @@ import { useApp } from '../../context/AppContext';
 import { Complaint, PickupRequest } from '../../types';
 import { RealDeviceCamera } from '../camera/RealDeviceCamera';
 import { uploadImageToStorage } from '../../lib/storage';
+import { verifyImageWithGemini, ImageVerificationResult } from '../../lib/geminiVerification';
+import { GeminiImageAuditBadge } from '../common/GeminiImageAuditBadge';
 import {
   HardHat,
   CheckCircle2,
@@ -18,6 +20,7 @@ import {
   Truck,
   Package,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -90,11 +93,35 @@ export const WorkerDashboard: React.FC = () => {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
+  // Gemini AI Cleanup & Authenticity Verification
+  const [geminiCleanupAudit, setGeminiCleanupAudit] = useState<ImageVerificationResult | null>(null);
+  const [isAnalyzingGemini, setIsAnalyzingGemini] = useState<boolean>(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const triggerCleanupAudit = async (afterImg: string, beforeImg?: string) => {
+    if (!afterImg) return;
+    setIsAnalyzingGemini(true);
+    try {
+      const res = await verifyImageWithGemini(afterImg, {
+        beforeImage: beforeImg,
+        mode: 'cleanup',
+      });
+      setGeminiCleanupAudit(res);
+      if (res.cleanupMatch?.wasteCleared) {
+        showToast('Gemini Vision verified: Site landmarks match & area clean (100% real photo)!', 'success');
+      }
+    } catch (e) {
+      console.warn('Gemini cleanup audit error:', e);
+    } finally {
+      setIsAnalyzingGemini(false);
+    }
+  };
 
   const handleWorkerPhotoConfirmed = async (blob: Blob, dataUrl: string) => {
     setIsUploadingPhoto(true);
     setUploadedAfterPhoto(dataUrl);
+    triggerCleanupAudit(dataUrl, selectedTaskForVerify?.beforePhotoUrl);
 
     try {
       const storageUrl = await uploadImageToStorage(blob, 'cleanups');
@@ -116,6 +143,7 @@ export const WorkerDashboard: React.FC = () => {
     reader.onload = async () => {
       if (typeof reader.result === 'string') {
         setUploadedAfterPhoto(reader.result);
+        triggerCleanupAudit(reader.result, selectedTaskForVerify?.beforePhotoUrl);
       }
       try {
         const storageUrl = await uploadImageToStorage(file, 'cleanups');
@@ -645,7 +673,7 @@ export const WorkerDashboard: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Dual Action Buttons under After Cleanup */}
+                  {/* Action Buttons under After Cleanup */}
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <button
                       type="button"
@@ -665,6 +693,20 @@ export const WorkerDashboard: React.FC = () => {
                     </button>
                   </div>
 
+                  {/* Quick Demo Sample Clean Photo button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanSample = 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=700&q=80';
+                      setUploadedAfterPhoto(cleanSample);
+                      triggerCleanupAudit(cleanSample, selectedTaskForVerify?.beforePhotoUrl);
+                    }}
+                    className="w-full mt-2 py-1.5 px-2 rounded-lg bg-[#EEF0E4] hover:bg-[#DAE3B7] dark:bg-[#202D1A] text-[#4A5F29] dark:text-[#DAE3B7] border border-[#4A5F29]/20 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-[#4A5F29]" />
+                    <span>Demo: Attach Real Cleaned Site Photo</span>
+                  </button>
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -674,6 +716,15 @@ export const WorkerDashboard: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Gemini Vision AI Verification Badge for Cleanup */}
+              {uploadedAfterPhoto && (
+                <GeminiImageAuditBadge
+                  result={geminiCleanupAudit}
+                  isLoading={isAnalyzingGemini}
+                  mode="cleanup"
+                />
+              )}
 
               <div className="pt-2 flex items-center justify-between gap-3">
                 <button

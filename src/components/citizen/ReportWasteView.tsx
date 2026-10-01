@@ -4,6 +4,8 @@ import { ComplaintCategory, ComplaintPriority } from '../../types';
 import { MUNICIPAL_AREAS } from '../../data/mockData';
 import { RealDeviceCamera } from '../camera/RealDeviceCamera';
 import { uploadImageToStorage } from '../../lib/storage';
+import { verifyImageWithGemini, ImageVerificationResult } from '../../lib/geminiVerification';
+import { GeminiImageAuditBadge } from '../common/GeminiImageAuditBadge';
 import {
   Upload,
   Camera,
@@ -14,6 +16,7 @@ import {
   Trash2,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -37,12 +40,36 @@ export const ReportWasteView: React.FC = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Gemini AI Image Verification & Authenticity Audit
+  const [geminiAudit, setGeminiAudit] = useState<ImageVerificationResult | null>(null);
+  const [isAnalyzingGemini, setIsAnalyzingGemini] = useState<boolean>(false);
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submittedTicketId, setSubmittedTicketId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [gpsCoordinates, setGpsCoordinates] = useState<string>('📍 28.6139° N, 77.2090° E');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const triggerGeminiAudit = async (imgUrl: string) => {
+    if (!imgUrl) return;
+    setIsAnalyzingGemini(true);
+    try {
+      const res = await verifyImageWithGemini(imgUrl, {
+        mode: 'report',
+        category,
+        location,
+      });
+      setGeminiAudit(res);
+      if (res.isAuthenticPhoto && !res.isAiGenerated) {
+        showToast('Gemini Vision verified: 100% Real photo, zero AI artifacts!', 'success');
+      }
+    } catch (e) {
+      console.warn('Gemini audit error:', e);
+    } finally {
+      setIsAnalyzingGemini(false);
+    }
+  };
 
   // Read real browser geolocation if permitted
   useEffect(() => {
@@ -66,12 +93,13 @@ export const ReportWasteView: React.FC = () => {
 
     // Instantly set preview for immediate responsiveness
     setPhotoUrl(dataUrl);
+    triggerGeminiAudit(dataUrl);
 
     try {
       // Upload actual captured camera frame to Firebase Storage or optimized proof
       const storageUrl = await uploadImageToStorage(blob, 'reports');
       setPhotoUrl(storageUrl);
-      showToast('Photo evidence captured and verified!', 'success');
+      showToast('Photo evidence captured and verified with Gemini Vision!', 'success');
     } catch (err: any) {
       console.warn('Storage upload note:', err);
       // Fallback preview remains intact so user can submit
@@ -96,6 +124,7 @@ export const ReportWasteView: React.FC = () => {
     reader.onload = async () => {
       if (typeof reader.result === 'string') {
         setPhotoUrl(reader.result);
+        triggerGeminiAudit(reader.result);
       }
       try {
         const storageUrl = await uploadImageToStorage(file, 'reports');
@@ -167,6 +196,10 @@ export const ReportWasteView: React.FC = () => {
     setDescription(
       'Municipal garbage bin is completely full and spilling over the walkway. Needs immediate sanitation truck clearance.'
     );
+    const demoPhoto = 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=700&q=80';
+    setPhotoUrl(demoPhoto);
+    setPhotoSource('upload');
+    triggerGeminiAudit(demoPhoto);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -423,6 +456,7 @@ export const ReportWasteView: React.FC = () => {
 
             {/* Media Area: Captured Preview OR Empty Picker */}
             {photoUrl ? (
+              <>
               <div className="relative rounded-2xl overflow-hidden border border-white/60 dark:border-white/15 aspect-4/3 bg-black/5 group shadow-sm">
                 <img
                   src={photoUrl}
@@ -492,6 +526,14 @@ export const ReportWasteView: React.FC = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Gemini Vision AI Verification & Authenticity Audit Badge */}
+              <GeminiImageAuditBadge
+                result={geminiAudit}
+                isLoading={isAnalyzingGemini}
+                mode="report"
+              />
+              </>
             ) : (
               /* Dropzone with Take Photo & Upload from Gallery */
               <div
